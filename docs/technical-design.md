@@ -4,7 +4,24 @@
 
 Build a web-based customer service chatbot for a fitness studio.
 
-Users can ask questions in a frontend chat UI. The backend calls an OpenAI model and answers based on the local `knowledge/*.md` files.
+Users can ask questions in a frontend chat UI. The backend calls an OpenAI model through a customer-service chat orchestration layer. That orchestration layer uses the local `knowledge/*.md` files as its business knowledge source.
+
+In this design, `knowledge/` is not itself a skill. It is content.
+
+There are two different skill concepts:
+
+1. Codex skill: a development-time skill used by Codex while building or maintaining this project. Codex can automatically trigger it based on the user's request and the skill description.
+2. Runtime chat orchestration: app code used by the deployed chatbot when frontend users send messages.
+
+The frontend user does not directly trigger a Codex skill. The frontend user triggers `/api/chat`; the backend then runs the runtime chat orchestration code.
+
+The runtime chat orchestration combines:
+
+- Assistant instructions
+- Conversation state
+- Safety and handoff rules
+- A knowledge search tool
+- The retrieved knowledge content
 
 The MVP should support:
 
@@ -17,7 +34,7 @@ The MVP should support:
 - Human handoff handling
 - Common FAQ answers
 
-The MVP should not try to build a complex multi-agent runtime. Development may use temporary Codex sub-agents, but the production app should run as a single customer-service assistant with knowledge retrieval.
+The MVP should not try to build a complex multi-agent runtime. Development may use temporary Codex sub-agents and Codex skills, but the production app should run as a single customer-service chat orchestration layer with knowledge search.
 
 ## 2. Non-Goals For MVP
 
@@ -43,6 +60,8 @@ These can be added after the core chat quality is stable.
 - Backend: Next.js Route Handler
 - LLM SDK: OpenAI Node SDK
 - Knowledge source: local Markdown files under `knowledge/`
+- Development skill: optional Codex skill for maintaining the FitFlow chatbot project
+- Runtime orchestration: customer-service chat orchestration implemented in app code
 - Deployment target: Vercel or another Node-compatible host
 
 This keeps frontend, backend, and knowledge retrieval in one codebase.
@@ -59,7 +78,11 @@ Frontend Chat UI
   v
 Backend Chat Route
   |
-  | read and search local Markdown knowledge
+  | run customer-service chat orchestration
+  v
+Chat Orchestration
+  |
+  | call knowledge search tool
   v
 Knowledge Retriever
   |
@@ -75,7 +98,14 @@ Backend Chat Route
 Frontend Chat UI
 ```
 
-The model does not directly read files. The backend retrieves relevant knowledge and includes it in the model instructions/input.
+The model does not directly read local files. A prompt alone cannot make the model automatically load a local skill or scan the project directory.
+
+The application must explicitly give the model access to knowledge in one of two ways:
+
+1. Custom tool approach: the backend implements a `searchKnowledge` function, retrieves relevant Markdown chunks, and passes them to the model.
+2. Hosted tool approach: the app uploads the Markdown files to an OpenAI vector store and gives the model the built-in `file_search` tool.
+
+For MVP, this design uses the custom tool approach because the knowledge base is small and already lives in the repository. The same runtime chat orchestration can later replace the custom retriever with OpenAI `file_search` without changing the frontend.
 
 ## 5. Proposed Directory Structure
 
@@ -114,6 +144,7 @@ agent-benben/
       knowledge.ts
       retrieve.ts
       prompt.ts
+      chat-orchestrator.ts
       types.ts
 
   .env.local.example
@@ -159,7 +190,73 @@ When the knowledge base grows, migrate to:
 - Admin upload workflow
 - Versioned knowledge documents
 
-## 7. Chat API
+## 7. Codex Skill Vs Runtime Orchestration
+
+### Codex Skill
+
+A Codex skill is useful for development and maintenance. It can teach Codex how to work on this specific project, such as:
+
+- How the FitFlow knowledge files are structured
+- How to update chatbot prompts
+- How to add new knowledge files safely
+- How to run acceptance checks
+- How to avoid mixing runtime app skills with Codex development skills
+
+Codex skill triggering is handled by Codex. When the user asks for a task that matches the skill description, Codex can load the skill instructions and follow them.
+
+A Codex skill is not available to end users of the deployed web chat UI.
+
+### Runtime Chat Orchestration
+
+Runtime chat orchestration is implemented in app code. It is what the deployed chatbot uses when a frontend user sends a message.
+
+The orchestration owns:
+
+- The assistant's role and tone
+- How conversation history is passed to the model
+- Which knowledge search tool is available
+- How retrieved knowledge is inserted into the model request
+- Safety boundaries
+- Handoff rules
+- Response shape returned to the frontend
+
+Suggested file:
+
+```text
+src/lib/chat-orchestrator.ts
+```
+
+Responsibilities:
+
+- Accept chat messages from the API route.
+- Determine whether the latest user message needs handoff checks.
+- Call `retrieveKnowledge()` or expose `searchKnowledge` as a tool.
+- Build the OpenAI request using instructions from `prompt.ts`.
+- Return assistant text, source filenames, and `handoffRecommended`.
+
+### Runtime Tool Calling Decision
+
+There are two valid implementation styles.
+
+Option A: pre-retrieve before model call.
+
+```text
+User message -> retrieveKnowledge() -> model call with selected context
+```
+
+This is simpler and easier to debug. It is the recommended MVP path.
+
+Option B: expose `searchKnowledge` as a function tool.
+
+```text
+User message -> model decides to call searchKnowledge -> backend runs tool -> model answers
+```
+
+This is closer to an agentic tool workflow. It is useful once we need multi-step reasoning or multiple tools, such as booking lookup, membership lookup, and staff handoff creation.
+
+For the first implementation, use Option A. It gives us deterministic source selection and fewer moving parts.
+
+## 8. Chat API
 
 Endpoint:
 
@@ -198,7 +295,7 @@ Response body:
 
 The first version can return a non-streaming response. Streaming can be added later for better UX.
 
-## 8. Prompt Design
+## 9. Prompt Design
 
 The assistant should behave as a fitness studio customer service representative.
 
@@ -221,7 +318,7 @@ The prompt should include:
 - Answer style
 - Current conversation history
 
-## 9. Handoff Logic
+## 10. Handoff Logic
 
 Handoff can be detected in two ways:
 
@@ -239,7 +336,7 @@ MVP handoff triggers:
 
 The API should expose `handoffRecommended` so the UI can show a handoff hint later.
 
-## 10. Frontend UX
+## 11. Frontend UX
 
 The MVP chat UI should include:
 
@@ -254,7 +351,7 @@ The MVP chat UI should include:
 
 The UI should not expose internal retrieval details by default. During development, sources can be displayed in a small debug area.
 
-## 11. Environment Variables
+## 12. Environment Variables
 
 Required:
 
@@ -271,7 +368,7 @@ OPENAI_MODEL=gpt-4.1-mini
 
 The model value should be configurable so upgrades do not require code changes.
 
-## 12. Development Sub-Agent Usage
+## 13. Development Sub-Agent Usage
 
 Sub-agents are for development only. They are not part of the runtime system.
 
@@ -285,7 +382,7 @@ Recommended development split:
 
 The main agent should integrate the work, resolve conflicts, and run verification.
 
-## 13. Acceptance Test Questions
+## 14. Acceptance Test Questions
 
 Use these questions to verify MVP behavior:
 
@@ -308,7 +405,7 @@ Expected behavior:
 - The assistant does not fabricate missing details.
 - The assistant recommends handoff for safety, refund, complaint, payment, and human-support scenarios.
 
-## 14. Implementation Plan
+## 15. Implementation Plan
 
 ### Phase 1: Project Setup
 
@@ -328,8 +425,7 @@ Expected behavior:
 
 - Add request validation.
 - Read latest user message.
-- Retrieve relevant knowledge chunks.
-- Call OpenAI model.
+- Call the customer-service chat orchestration layer.
 - Return assistant message, sources, and handoff flag.
 
 ### Phase 4: Knowledge Retrieval
@@ -338,6 +434,12 @@ Expected behavior:
 - Implement chunking.
 - Implement keyword scoring.
 - Add file-level intent weighting.
+
+### Phase 4.5: Chat Orchestration
+
+- Implement `src/lib/chat-orchestrator.ts`.
+- Connect prompt, retrieval, handoff rules, and OpenAI call.
+- Keep the API route thin.
 
 ### Phase 5: Prompt And Safety
 
@@ -351,7 +453,7 @@ Expected behavior:
 - Manually test acceptance questions.
 - Verify the UI handles loading and errors.
 
-## 15. Future Enhancements
+## 16. Future Enhancements
 
 - Streaming responses
 - Persistent conversation history
