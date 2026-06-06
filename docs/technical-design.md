@@ -8,19 +8,21 @@ Users can ask questions in a frontend chat UI. The backend calls an OpenAI model
 
 In this design, `knowledge/` is not itself a skill. It is content.
 
-There are two different skill concepts:
+There are two related skill concepts:
 
 1. Codex skill: a development-time skill used by Codex while building or maintaining this project. Codex can automatically trigger it based on the user's request and the skill description.
-2. Runtime chat orchestration: app code used by the deployed chatbot when frontend users send messages.
+2. Runtime skill: a product-time skill used by the deployed chatbot. The app can implement a Codex-like skill mechanism by exposing skill metadata to the model and letting the model request a skill through tool calling.
 
-The frontend user does not directly trigger a Codex skill. The frontend user triggers `/api/chat`; the backend then runs the runtime chat orchestration code.
+The deployed web chatbot cannot rely on the Codex runtime itself. However, it can use the same design pattern: keep skill metadata and instructions in files, show the available skill list to the model, let the model return a tool call selecting a skill, then load the selected skill and call the model again.
 
 The runtime chat orchestration combines:
 
-- Assistant instructions
+- Skill metadata
+- Selected skill instructions
 - Conversation state
 - Safety and handoff rules
-- A knowledge search tool
+- A skill loading tool
+- A knowledge search tool used by the selected skill
 - The retrieved knowledge content
 
 The MVP should support:
@@ -34,7 +36,7 @@ The MVP should support:
 - Human handoff handling
 - Common FAQ answers
 
-The MVP should not try to build a complex multi-agent runtime. Development may use temporary Codex sub-agents and Codex skills, but the production app should run as a single customer-service chat orchestration layer with knowledge search.
+The MVP should not try to build a complex multi-agent runtime. Development may use temporary Codex sub-agents and Codex skills. The production app should run as a single chat orchestrator with runtime skill selection through tool calling.
 
 ## 2. Non-Goals For MVP
 
@@ -61,7 +63,8 @@ These can be added after the core chat quality is stable.
 - LLM SDK: OpenAI Node SDK
 - Knowledge source: local Markdown files under `knowledge/`
 - Development skill: optional Codex skill for maintaining the FitFlow chatbot project
-- Runtime orchestration: customer-service chat orchestration implemented in app code
+- Runtime skills: app-readable skill files with frontmatter metadata and instructions
+- Runtime orchestration: chat orchestrator implemented in app code
 - Deployment target: Vercel or another Node-compatible host
 
 This keeps frontend, backend, and knowledge retrieval in one codebase.
@@ -82,11 +85,23 @@ Backend Chat Route
   v
 Chat Orchestration
   |
-  | call knowledge search tool
+  | first model call with skill metadata and load_skill tool
+  v
+OpenAI Model
+  |
+  | returns tool-use: load_skill(skillName, userIntent)
+  v
+Runtime Skill Loader
+  |
+  | selected skill instructions
+  v
+Chat Orchestration
+  |
+  | selected skill calls knowledge search
   v
 Knowledge Retriever
   |
-  | relevant knowledge chunks
+  | relevant knowledge chunks + selected skill content
   v
 OpenAI Model
   |
@@ -98,14 +113,18 @@ Backend Chat Route
 Frontend Chat UI
 ```
 
-The model does not directly read local files. A prompt alone cannot make the model automatically load a local skill or scan the project directory.
+The model does not directly read local files. A prompt alone cannot make the model scan the project directory. The app must expose an explicit tool that lets the model request a skill.
 
-The application must explicitly give the model access to knowledge in one of two ways:
+The runtime flow is:
 
-1. Custom tool approach: the backend implements a `searchKnowledge` function, retrieves relevant Markdown chunks, and passes them to the model.
-2. Hosted tool approach: the app uploads the Markdown files to an OpenAI vector store and gives the model the built-in `file_search` tool.
+1. The backend loads the frontmatter metadata for available runtime skills.
+2. The backend sends the user message, conversation context, skill metadata list, and a `load_skill` function tool to the model.
+3. The model returns a tool call such as `load_skill({ "skill": "fitflow_customer_service" })`.
+4. The backend executes the tool by loading the selected skill instructions and any relevant knowledge.
+5. The backend sends the tool output back to the model.
+6. The model generates the final user-facing answer.
 
-For MVP, this design uses the custom tool approach because the knowledge base is small and already lives in the repository. The same runtime chat orchestration can later replace the custom retriever with OpenAI `file_search` without changing the frontend.
+This matches the standard OpenAI tool-calling loop: request with tools, receive tool call, execute app code, submit tool output, then receive the final model response.
 
 ## 5. Proposed Directory Structure
 
@@ -113,6 +132,14 @@ For MVP, this design uses the custom tool approach because the knowledge base is
 agent-benben/
   docs/
     technical-design.md
+
+  skills/
+    fitflow-customer-service/
+      SKILL.md
+    fitflow-safety-boundary/
+      SKILL.md
+    fitflow-human-handoff/
+      SKILL.md
 
   knowledge/
     studio-overview.md
@@ -145,6 +172,8 @@ agent-benben/
       retrieve.ts
       prompt.ts
       chat-orchestrator.ts
+      skill-loader.ts
+      skill-registry.ts
       types.ts
 
   .env.local.example
@@ -190,9 +219,60 @@ When the knowledge base grows, migrate to:
 - Admin upload workflow
 - Versioned knowledge documents
 
-## 7. Codex Skill Vs Runtime Orchestration
+## 7. Skill System
 
-### Codex Skill
+### Runtime Skill Files
+
+Runtime skills are app-readable files. They can follow a Codex-like `SKILL.md` format with frontmatter metadata plus instructions.
+
+Example:
+
+```markdown
+---
+name: fitflow_customer_service
+description: Answer FitFlow studio, class, membership, booking, cancellation, and FAQ questions using FitFlow knowledge.
+---
+
+# FitFlow Customer Service Skill
+
+Use FitFlow knowledge files as the source of truth.
+Do not invent prices, schedules, addresses, or policies.
+```
+
+The runtime skill frontmatter is safe to show to the model during skill selection. The full skill body should only be loaded after the model selects that skill.
+
+### Runtime Skill Registry
+
+Suggested file:
+
+```text
+src/lib/skill-registry.ts
+```
+
+Responsibilities:
+
+- Read available skill directories under `skills/`.
+- Parse each `SKILL.md` frontmatter.
+- Return a compact skill metadata list for the first model call.
+- Validate that a requested skill name exists.
+
+### Runtime Skill Loader
+
+Suggested file:
+
+```text
+src/lib/skill-loader.ts
+```
+
+Responsibilities:
+
+- Load the selected `SKILL.md` body.
+- Attach skill-specific knowledge files or retrieval configuration.
+- Return the skill instructions and selected knowledge context as the `load_skill` tool output.
+
+### Codex Skill Vs Runtime Skill
+
+#### Codex Skill
 
 A Codex skill is useful for development and maintenance. It can teach Codex how to work on this specific project, such as:
 
@@ -204,9 +284,9 @@ A Codex skill is useful for development and maintenance. It can teach Codex how 
 
 Codex skill triggering is handled by Codex. When the user asks for a task that matches the skill description, Codex can load the skill instructions and follow them.
 
-A Codex skill is not available to end users of the deployed web chat UI.
+The deployed web chatbot does not automatically get Codex's native skill runtime. If we want frontend users to trigger skills, the app must implement the runtime skill registry and `load_skill` tool described above.
 
-### Runtime Chat Orchestration
+#### Runtime Chat Orchestration
 
 Runtime chat orchestration is implemented in app code. It is what the deployed chatbot uses when a frontend user sends a message.
 
@@ -214,7 +294,8 @@ The orchestration owns:
 
 - The assistant's role and tone
 - How conversation history is passed to the model
-- Which knowledge search tool is available
+- Which skill metadata is visible to the model
+- Which skill loading tool is available
 - How retrieved knowledge is inserted into the model request
 - Safety boundaries
 - Handoff rules
@@ -229,32 +310,26 @@ src/lib/chat-orchestrator.ts
 Responsibilities:
 
 - Accept chat messages from the API route.
-- Determine whether the latest user message needs handoff checks.
-- Call `retrieveKnowledge()` or expose `searchKnowledge` as a tool.
-- Build the OpenAI request using instructions from `prompt.ts`.
+- Load available skill metadata from `skill-registry.ts`.
+- Make the first OpenAI request with the `load_skill` tool available.
+- Read the returned tool call.
+- Execute `load_skill` through `skill-loader.ts`.
+- Send the tool output back to the model.
 - Return assistant text, source filenames, and `handoffRecommended`.
 
-### Runtime Tool Calling Decision
-
-There are two valid implementation styles.
-
-Option A: pre-retrieve before model call.
+### Runtime Tool Calling Flow
 
 ```text
-User message -> retrieveKnowledge() -> model call with selected context
+User message
+  -> chat-orchestrator loads skill metadata
+  -> OpenAI call #1 with load_skill tool
+  -> model returns tool-use: load_skill(...)
+  -> backend loads selected SKILL.md and relevant knowledge
+  -> OpenAI call #2 with function_call_output
+  -> model returns final answer
 ```
 
-This is simpler and easier to debug. It is the recommended MVP path.
-
-Option B: expose `searchKnowledge` as a function tool.
-
-```text
-User message -> model decides to call searchKnowledge -> backend runs tool -> model answers
-```
-
-This is closer to an agentic tool workflow. It is useful once we need multi-step reasoning or multiple tools, such as booking lookup, membership lookup, and staff handoff creation.
-
-For the first implementation, use Option A. It gives us deterministic source selection and fewer moving parts.
+The first model response should normally be a tool-use response. The second model response should be the final user-facing answer.
 
 ## 8. Chat API
 
@@ -297,6 +372,38 @@ The first version can return a non-streaming response. Streaming can be added la
 
 ## 9. Prompt Design
 
+There are two prompt layers.
+
+### Skill Selection Prompt
+
+The first model call should select a skill, not answer the user directly.
+
+It receives:
+
+- Current user message
+- Recent conversation history
+- Compact runtime skill metadata from `skill-registry.ts`
+- The `load_skill` function tool
+
+Core rules:
+
+- Choose the best skill using the skill descriptions.
+- Return a `load_skill` tool call when a skill is needed.
+- Do not answer the user before the selected skill instructions and knowledge are loaded.
+- If no skill applies, call the fallback or handoff skill.
+
+### Final Answer Prompt
+
+The second model call should produce the user-facing answer.
+
+It receives:
+
+- Current user message
+- Recent conversation history
+- Selected skill instructions
+- Retrieved knowledge context
+- Tool output from `load_skill`
+
 The assistant should behave as a fitness studio customer service representative.
 
 Core rules:
@@ -312,6 +419,7 @@ Core rules:
 The prompt should include:
 
 - Assistant role
+- Selected skill instructions
 - Knowledge context
 - Safety rules
 - Handoff rules
@@ -428,26 +536,49 @@ Expected behavior:
 - Call the customer-service chat orchestration layer.
 - Return assistant message, sources, and handoff flag.
 
-### Phase 4: Knowledge Retrieval
+### Phase 4: Runtime Skill Files
+
+- Create `skills/fitflow-customer-service/SKILL.md`.
+- Create `skills/fitflow-safety-boundary/SKILL.md`.
+- Create `skills/fitflow-human-handoff/SKILL.md`.
+- Add frontmatter with `name` and `description` for skill selection.
+- Add full skill instructions below the frontmatter.
+
+### Phase 5: Skill Registry And Loader
+
+- Implement `src/lib/skill-registry.ts`.
+- Parse `SKILL.md` frontmatter.
+- Return compact metadata for the first model call.
+- Implement `src/lib/skill-loader.ts`.
+- Validate selected skill names.
+- Load the selected skill body.
+
+### Phase 6: Knowledge Retrieval
 
 - Implement Markdown file loader.
 - Implement chunking.
 - Implement keyword scoring.
 - Add file-level intent weighting.
 
-### Phase 4.5: Chat Orchestration
+### Phase 7: Tool-Use Chat Orchestration
 
 - Implement `src/lib/chat-orchestrator.ts`.
-- Connect prompt, retrieval, handoff rules, and OpenAI call.
+- Make OpenAI call #1 with skill metadata and `load_skill` tool.
+- Parse model tool-use output.
+- Execute `load_skill`.
+- Retrieve relevant knowledge for the selected skill.
+- Make OpenAI call #2 with `function_call_output`.
+- Return the final model answer.
 - Keep the API route thin.
 
-### Phase 5: Prompt And Safety
+### Phase 8: Prompt And Safety
 
-- Add customer-service system prompt.
+- Add skill selection prompt.
+- Add final answer prompt.
 - Add safety and handoff rules.
 - Make missing-knowledge behavior explicit.
 
-### Phase 6: Verification
+### Phase 9: Verification
 
 - Run local typecheck and lint.
 - Manually test acceptance questions.
