@@ -9,8 +9,8 @@ const INTENT_FILE_HINTS: Array<{ terms: string[]; files: string[] }> = [
     files: ["beginner-guide.md", "classes.md", "faq.md"],
   },
   {
-    terms: ["class", "hiit", "strength", "mobility", "running", "课程", "训练", "力量", "跑步"],
-    files: ["classes.md"],
+    terms: ["class", "hiit", "strength", "mobility", "running", "run", "night run", "route", "where", "when", "time", "课程", "训练", "力量", "跑步", "夜跑", "路线", "几点", "时间", "哪里"],
+    files: ["classes.md", "faq.md"],
   },
   {
     terms: ["price", "membership", "package", "trial", "cost", "多少钱", "会员", "价格", "体验课", "课包"],

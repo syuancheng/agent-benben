@@ -48,6 +48,24 @@ Typical class windows:
 
 Specific weekly schedules and available slots should be confirmed with staff.
 
+## When Is Night Run And Where Do We Run?
+
+Night Run has regular sessions:
+
+- Tuesday 19:00: Marina Bay route. Meet at Red Dot Design Museum in Singapore.
+- Thursday 19:00: Marina Bay route. Meet at Red Dot Design Museum in Singapore.
+- Saturday 07:00: East Coast route. Meet at Parkland Green at East Coast.
+
+Available pace groups:
+
+- 7'00" pace
+- 6'00" pace
+- 5'50" pace
+
+First-time participants should arrive early and choose a comfortable pace. If unsure, start with the 7'00" pace group and ask staff for guidance.
+
+Users with pain, injury, dizziness, illness, high blood pressure, cardiovascular disease, pregnancy, or other medical concerns should consult a doctor and inform staff before joining.
+
 ## What Should I Bring For My First Class?
 
 Bring comfortable workout clothes, appropriate training shoes, and water.
