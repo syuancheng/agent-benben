@@ -3,6 +3,12 @@ import { buildFinalAnswerInstructions, buildSkillSelectionInstructions, formatMe
 import { loadRuntimeSkill } from "./skill-loader";
 import { listRuntimeSkills } from "./skill-registry";
 import type { ChatMessage, ChatResult } from "./types";
+import type { OpenAI } from "openai";
+import type {
+  ResponseCreateParamsNonStreaming,
+  ResponseCreateParamsStreaming,
+  ResponseStreamEvent,
+} from "openai/resources/responses/responses";
 
 type ResponseItem = {
   type?: string;
@@ -12,6 +18,71 @@ type ResponseItem = {
 };
 
 export async function runChatOrchestrator(messages: ChatMessage[]): Promise<ChatResult> {
+  const prepared = await prepareChatResponse(messages);
+
+  const finalResponse = await prepared.openai.responses.create({
+    model: prepared.model,
+    instructions: prepared.finalInstructions,
+    ...prepared.finalInput,
+  } as ResponseCreateParamsNonStreaming);
+
+  return {
+    message: {
+      role: "assistant",
+      content: finalResponse.output_text || "I could not generate an answer. Please contact Tempo Fitness staff.",
+    },
+    sources: prepared.sources,
+    selectedSkill: prepared.selectedSkill,
+    handoffRecommended: prepared.handoffRecommended,
+  };
+}
+
+export async function streamChatOrchestrator(
+  messages: ChatMessage[],
+  handlers: {
+    onMeta: (meta: Omit<ChatResult, "message">) => void | Promise<void>;
+    onDelta: (delta: string) => void | Promise<void>;
+  },
+): Promise<void> {
+  const prepared = await prepareChatResponse(messages);
+
+  await handlers.onMeta({
+    sources: prepared.sources,
+    selectedSkill: prepared.selectedSkill,
+    handoffRecommended: prepared.handoffRecommended,
+  });
+
+  const stream = await prepared.openai.responses.create({
+    model: prepared.model,
+    instructions: prepared.finalInstructions,
+    ...prepared.finalInput,
+    stream: true,
+  } as ResponseCreateParamsStreaming);
+
+  for await (const event of stream as AsyncIterable<ResponseStreamEvent>) {
+    if (event.type === "response.output_text.delta") {
+      await handlers.onDelta(event.delta);
+    }
+
+    if (event.type === "error") {
+      throw new Error(event.message);
+    }
+
+    if (event.type === "response.failed") {
+      throw new Error(event.response.error?.message || "OpenAI response failed.");
+    }
+  }
+}
+
+async function prepareChatResponse(messages: ChatMessage[]): Promise<{
+  openai: OpenAI;
+  model: string;
+  finalInstructions: string;
+  finalInput: Record<string, unknown>;
+  sources: string[];
+  selectedSkill: string;
+  handoffRecommended: boolean;
+}> {
   const latestUserMessage = getLatestUserMessage(messages);
 
   if (!latestUserMessage?.content.trim()) {
@@ -55,15 +126,17 @@ export async function runChatOrchestrator(messages: ChatMessage[]): Promise<Chat
   const toolCall = findLoadSkillToolCall(selectionResponse.output as ResponseItem[]);
   const requestedSkill = toolCall ? parseSkillName(toolCall.arguments) : fallbackSkillName(skills);
   const loaded = await loadRuntimeSkill(requestedSkill, latestUserMessage.content);
+  const selectedSkill = loaded.skill.name;
 
-  const finalResponse = await openai.responses.create({
+  return {
+    openai,
     model,
-    instructions: buildFinalAnswerInstructions({
+    finalInstructions: buildFinalAnswerInstructions({
       skillName: loaded.skill.name,
       skillInstructions: loaded.skill.instructions,
       knowledgeContext: loaded.knowledgeContext,
     }),
-    ...(toolCall
+    finalInput: toolCall
       ? {
           previous_response_id: selectionResponse.id,
           input: [
@@ -80,16 +153,7 @@ export async function runChatOrchestrator(messages: ChatMessage[]): Promise<Chat
         }
       : {
           input: formatMessagesForModel(messages),
-        }),
-  } as never);
-
-  const selectedSkill = loaded.skill.name;
-
-  return {
-    message: {
-      role: "assistant",
-      content: finalResponse.output_text || "I could not generate an answer. Please contact Tempo Fitness staff.",
-    },
+        },
     sources: loaded.sources,
     selectedSkill,
     handoffRecommended: isHandoffSkill(selectedSkill) || shouldRecommendHandoff(latestUserMessage.content),

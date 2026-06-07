@@ -333,7 +333,41 @@ The first model response should normally be a tool-use response. The second mode
 
 ## 8. Chat API
 
-Endpoint:
+Streaming endpoint used by the frontend:
+
+```text
+POST /api/chat/stream
+```
+
+Request body:
+
+```json
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": "第一次来应该上什么课？"
+    }
+  ]
+}
+```
+
+Response body:
+
+```text
+event: meta
+data: {"sources":["beginner-guide.md","classes.md"],"selectedSkill":"tempo_customer_service","handoffRecommended":false}
+
+event: delta
+data: {"delta":"..."}
+
+event: done
+data: {}
+```
+
+The skill selection call is not streamed to the user. The final answer call is streamed token-by-token through Server-Sent Events.
+
+Non-streaming endpoint retained for compatibility:
 
 ```text
 POST /api/chat
@@ -367,8 +401,6 @@ Response body:
   "handoffRecommended": false
 }
 ```
-
-The first version can return a non-streaming response. Streaming can be added later for better UX.
 
 ## 9. Prompt Design
 
@@ -527,7 +559,8 @@ Expected behavior:
 - Build `ChatWindow`.
 - Build `MessageBubble`.
 - Build `ChatInput`.
-- Connect UI to `/api/chat`.
+- Connect UI to `/api/chat/stream`.
+- Append assistant text as `delta` events arrive.
 
 ### Phase 3: Backend Chat Route
 
@@ -535,6 +568,8 @@ Expected behavior:
 - Read latest user message.
 - Call the customer-service chat orchestration layer.
 - Return assistant message, sources, and handoff flag.
+- Keep `/api/chat` as a non-streaming compatibility endpoint.
+- Add `/api/chat/stream` as the frontend endpoint.
 
 ### Phase 4: Runtime Skill Files
 
@@ -568,7 +603,7 @@ Expected behavior:
 - Execute `load_skill`.
 - Retrieve relevant knowledge for the selected skill.
 - Make OpenAI call #2 with `function_call_output`.
-- Return the final model answer.
+- Stream the final model answer from OpenAI call #2.
 - Keep the API route thin.
 
 ### Phase 8: Prompt And Safety
@@ -586,7 +621,6 @@ Expected behavior:
 
 ## 16. Future Enhancements
 
-- Streaming responses
 - Persistent conversation history
 - Admin knowledge editor
 - OpenAI Vector Store and `file_search`

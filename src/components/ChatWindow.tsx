@@ -4,10 +4,9 @@ import { useState } from "react";
 import { ChatInput } from "./ChatInput";
 import { ChatMessage, MessageBubble } from "./MessageBubble";
 
-type ParsedAssistantResponse = {
-  content: string;
-  sources?: unknown;
-  debug?: unknown;
+type StreamEvent = {
+  event: string;
+  data: unknown;
 };
 
 function createId() {
@@ -16,54 +15,6 @@ function createId() {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
-}
-
-function getString(value: unknown) {
-  return typeof value === "string" ? value : undefined;
-}
-
-function parseAssistantResponse(data: unknown): ParsedAssistantResponse {
-  if (typeof data === "string") {
-    return { content: data };
-  }
-
-  if (!isRecord(data)) {
-    return { content: "Received an empty response." };
-  }
-
-  const message = isRecord(data.message) ? data.message : undefined;
-  const choices = Array.isArray(data.choices) ? data.choices : undefined;
-  const firstChoice = choices?.find(isRecord);
-  const choiceMessage = isRecord(firstChoice?.message)
-    ? firstChoice.message
-    : undefined;
-  const messages = Array.isArray(data.messages) ? data.messages : undefined;
-  const lastAssistantMessage = messages
-    ?.filter(isRecord)
-    .reverse()
-    .find((item) => item.role === "assistant");
-
-  const content =
-    getString(data.content) ??
-    getString(data.answer) ??
-    getString(data.response) ??
-    getString(message?.content) ??
-    getString(choiceMessage?.content) ??
-    getString(lastAssistantMessage?.content) ??
-    "Received an empty response.";
-
-  return {
-    content,
-    sources: data.sources ?? message?.sources ?? lastAssistantMessage?.sources,
-    debug:
-      data.debug ??
-      message?.debug ??
-      lastAssistantMessage?.debug ??
-      {
-        selectedSkill: data.selectedSkill,
-        handoffRecommended: data.handoffRecommended,
-      },
-  };
 }
 
 export function ChatWindow() {
@@ -83,14 +34,22 @@ export function ChatWindow() {
       role: "user",
       content,
     };
+    const assistantId = createId();
     const nextMessages = [...messages, userMessage];
 
-    setMessages(nextMessages);
+    setMessages([
+      ...nextMessages,
+      {
+        id: assistantId,
+        role: "assistant",
+        content: "",
+      },
+    ]);
     setIsLoading(true);
     setError(null);
 
     try {
-      const response = await fetch("/api/chat", {
+      const response = await fetch("/api/chat/stream", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -103,9 +62,8 @@ export function ChatWindow() {
         }),
       });
 
-      const data = await response.json().catch(() => null);
-
       if (!response.ok) {
+        const data = await response.json().catch(() => null);
         const message =
           isRecord(data) && typeof data.error === "string"
             ? data.error
@@ -113,22 +71,33 @@ export function ChatWindow() {
         throw new Error(message);
       }
 
-      const assistant = parseAssistantResponse(data);
+      if (!response.body) {
+        throw new Error("Response stream is not available.");
+      }
 
-      setMessages((current) => [
-        ...current,
-        {
-          id: createId(),
-          role: "assistant",
-          content: assistant.content,
-          sources: assistant.sources,
-          debug: assistant.debug,
+      await readAssistantStream(response.body, {
+        onDelta: (delta) => {
+          setMessages((current) =>
+            current.map((message) =>
+              message.id === assistantId ? { ...message, content: message.content + delta } : message,
+            ),
+          );
         },
-      ]);
+      });
     } catch (caught) {
       const message =
         caught instanceof Error ? caught.message : "Failed to send message.";
       setError(message);
+      setMessages((current) =>
+        current.map((chatMessage) =>
+          chatMessage.id === assistantId && !chatMessage.content
+            ? {
+                ...chatMessage,
+                content: "I could not generate an answer. Please try again.",
+              }
+            : chatMessage,
+        ),
+      );
     } finally {
       setIsLoading(false);
     }
@@ -148,7 +117,7 @@ export function ChatWindow() {
         ))}
 
         {isLoading ? (
-          <div className="text-sm text-slate-500">Assistant is thinking...</div>
+          <div className="text-sm text-slate-500">Assistant is responding...</div>
         ) : null}
 
         {error ? (
@@ -164,4 +133,65 @@ export function ChatWindow() {
       <ChatInput disabled={isLoading} onSend={handleSend} />
     </section>
   );
+}
+
+async function readAssistantStream(
+  body: ReadableStream<Uint8Array>,
+  handlers: {
+    onDelta: (delta: string) => void;
+  },
+) {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) {
+      break;
+    }
+
+    buffer += decoder.decode(value, { stream: true });
+    const events = buffer.split("\n\n");
+    buffer = events.pop() || "";
+
+    for (const rawEvent of events) {
+      const parsed = parseSseEvent(rawEvent);
+
+      if (!parsed) {
+        continue;
+      }
+
+      if (parsed.event === "delta" && isRecord(parsed.data) && typeof parsed.data.delta === "string") {
+        handlers.onDelta(parsed.data.delta);
+      }
+
+      if (parsed.event === "error") {
+        const message =
+          isRecord(parsed.data) && typeof parsed.data.error === "string"
+            ? parsed.data.error
+            : "Streaming request failed.";
+        throw new Error(message);
+      }
+    }
+  }
+}
+
+function parseSseEvent(rawEvent: string): StreamEvent | null {
+  const lines = rawEvent.split("\n");
+  const event = lines.find((line) => line.startsWith("event: "))?.slice(7);
+  const dataLine = lines.find((line) => line.startsWith("data: "))?.slice(6);
+
+  if (!event || !dataLine) {
+    return null;
+  }
+
+  try {
+    return {
+      event,
+      data: JSON.parse(dataLine),
+    };
+  } catch {
+    return null;
+  }
 }

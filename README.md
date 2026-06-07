@@ -2,7 +2,7 @@
 
 Tempo Fitness customer service chatbot.
 
-The app is a Next.js web UI with a backend chat route. The backend calls OpenAI Responses API, lets the model select a runtime skill through tool-use, loads the selected `SKILL.md` plus relevant `knowledge/*.md`, then asks the model to produce the final answer.
+The app is a Next.js web UI with backend chat routes. The backend calls OpenAI Responses API, lets the model select a runtime skill through tool-use, loads the selected `SKILL.md` plus relevant `knowledge/*.md`, then streams the final answer back to the UI.
 
 ## Prerequisites
 
@@ -63,12 +63,12 @@ Ask a Tempo Fitness question in the chat UI, for example:
 第一次来适合上什么课？
 ```
 
-## Test The API Directly
+## Test The Streaming API Directly
 
 With the dev server running, send a request:
 
 ```bash
-curl -s http://localhost:3000/api/chat \
+curl -N http://localhost:3000/api/chat/stream \
   -H "Content-Type: application/json" \
   -d '{
     "messages": [
@@ -77,22 +77,23 @@ curl -s http://localhost:3000/api/chat \
         "content": "第一次来适合上什么课？"
       }
     ]
-  }'
+}'
 ```
 
-Expected response shape:
+Expected Server-Sent Events shape:
 
-```json
-{
-  "message": {
-    "role": "assistant",
-    "content": "..."
-  },
-  "sources": ["beginner-guide.md", "classes.md"],
-  "selectedSkill": "tempo_customer_service",
-  "handoffRecommended": false
-}
+```text
+event: meta
+data: {"sources":["beginner-guide.md","classes.md"],"selectedSkill":"tempo_customer_service","handoffRecommended":false}
+
+event: delta
+data: {"delta":"..."}
+
+event: done
+data: {}
 ```
+
+The older non-streaming endpoint remains available at `POST /api/chat`.
 
 ## Acceptance Questions
 
