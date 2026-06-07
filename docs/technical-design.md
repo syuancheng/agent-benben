@@ -1,4 +1,4 @@
-# FitFlow AI Customer Service Chatbot Technical Design
+# Tempo Fitness AI Customer Service Chatbot Technical Design
 
 ## 1. Goal
 
@@ -62,7 +62,7 @@ These can be added after the core chat quality is stable.
 - Backend: Next.js Route Handler
 - LLM SDK: OpenAI Node SDK
 - Knowledge source: local Markdown files under `knowledge/`
-- Development skill: optional Codex skill for maintaining the FitFlow chatbot project
+- Development skill: optional Codex skill for maintaining the Tempo Fitness chatbot project
 - Runtime skills: app-readable skill files with frontmatter metadata and instructions
 - Runtime orchestration: chat orchestrator implemented in app code
 - Deployment target: Vercel or another Node-compatible host
@@ -119,7 +119,7 @@ The runtime flow is:
 
 1. The backend loads the frontmatter metadata for available runtime skills.
 2. The backend sends the user message, conversation context, skill metadata list, and a `load_skill` function tool to the model.
-3. The model returns a tool call such as `load_skill({ "skill": "fitflow_customer_service" })`.
+3. The model returns a tool call such as `load_skill({ "skill": "tempo_customer_service" })`.
 4. The backend executes the tool by loading the selected skill instructions and any relevant knowledge.
 5. The backend sends the tool output back to the model.
 6. The model generates the final user-facing answer.
@@ -129,16 +129,16 @@ This matches the standard OpenAI tool-calling loop: request with tools, receive 
 ## 5. Proposed Directory Structure
 
 ```text
-agent-benben/
+tempo-fitness/
   docs/
     technical-design.md
 
   skills/
-    fitflow-customer-service/
+    tempo-customer-service/
       SKILL.md
-    fitflow-safety-boundary/
+    tempo-safety-boundary/
       SKILL.md
-    fitflow-human-handoff/
+    tempo-human-handoff/
       SKILL.md
 
   knowledge/
@@ -229,13 +229,13 @@ Example:
 
 ```markdown
 ---
-name: fitflow_customer_service
-description: Answer FitFlow studio, class, membership, booking, cancellation, and FAQ questions using FitFlow knowledge.
+name: tempo_customer_service
+description: Answer Tempo Fitness studio, class, membership, booking, cancellation, and FAQ questions using Tempo Fitness knowledge.
 ---
 
-# FitFlow Customer Service Skill
+# Tempo Fitness Customer Service Skill
 
-Use FitFlow knowledge files as the source of truth.
+Use Tempo Fitness knowledge files as the source of truth.
 Do not invent prices, schedules, addresses, or policies.
 ```
 
@@ -276,7 +276,7 @@ Responsibilities:
 
 A Codex skill is useful for development and maintenance. It can teach Codex how to work on this specific project, such as:
 
-- How the FitFlow knowledge files are structured
+- How the Tempo Fitness knowledge files are structured
 - How to update chatbot prompts
 - How to add new knowledge files safely
 - How to run acceptance checks
@@ -496,7 +496,7 @@ Use these questions to verify MVP behavior:
 
 - "第一次来适合上什么课？"
 - "你们有哪些课程？"
-- "HIIT 和 Strength 有什么区别？"
+- "HIIT 和瑜伽课有什么区别？"
 - "怎么预约体验课？"
 - "可以 walk-in 吗？"
 - "我迟到了还能进教室吗？"
@@ -538,9 +538,9 @@ Expected behavior:
 
 ### Phase 4: Runtime Skill Files
 
-- Create `skills/fitflow-customer-service/SKILL.md`.
-- Create `skills/fitflow-safety-boundary/SKILL.md`.
-- Create `skills/fitflow-human-handoff/SKILL.md`.
+- Create `skills/tempo-customer-service/SKILL.md`.
+- Create `skills/tempo-safety-boundary/SKILL.md`.
+- Create `skills/tempo-human-handoff/SKILL.md`.
 - Add frontmatter with `name` and `description` for skill selection.
 - Add full skill instructions below the frontmatter.
 

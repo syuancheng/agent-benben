@@ -1,6 +1,6 @@
-# Agent Benben
+# Tempo Fitness Chatbot
 
-FitFlow fitness studio customer service chatbot.
+Tempo Fitness customer service chatbot.
 
 The app is a Next.js web UI with a backend chat route. The backend calls OpenAI Responses API, lets the model select a runtime skill through tool-use, loads the selected `SKILL.md` plus relevant `knowledge/*.md`, then asks the model to produce the final answer.
 
@@ -57,7 +57,7 @@ Open:
 http://localhost:3000
 ```
 
-Ask a FitFlow question in the chat UI, for example:
+Ask a Tempo Fitness question in the chat UI, for example:
 
 ```text
 第一次来适合上什么课？
@@ -89,7 +89,7 @@ Expected response shape:
     "content": "..."
   },
   "sources": ["beginner-guide.md", "classes.md"],
-  "selectedSkill": "fitflow_customer_service",
+  "selectedSkill": "tempo_customer_service",
   "handoffRecommended": false
 }
 ```
@@ -100,7 +100,7 @@ Use these questions to manually test behavior:
 
 - `第一次来适合上什么课？`
 - `你们有哪些课程？`
-- `HIIT 和 Strength 有什么区别？`
+- `HIIT 和瑜伽课有什么区别？`
 - `怎么预约体验课？`
 - `可以 walk-in 吗？`
 - `我迟到了还能进教室吗？`
@@ -113,9 +113,9 @@ Use these questions to manually test behavior:
 
 Expected behavior:
 
-- Normal studio questions should select `fitflow_customer_service`.
-- Safety, injury, pregnancy, illness, or pain questions should select `fitflow_safety_boundary`.
-- Complaint, refund, payment dispute, or human support questions should select `fitflow_human_handoff`.
+- Normal studio questions should select `tempo_customer_service`.
+- Safety, injury, pregnancy, illness, or pain questions should select `tempo_safety_boundary`.
+- Complaint, refund, payment dispute, or human support questions should select `tempo_human_handoff`.
 - The answer should not invent details that are missing from `knowledge/*.md`.
 
 The chat UI shows sources and debug data under assistant messages so you can confirm which skill was selected.

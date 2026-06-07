@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Agent Benben Chat",
-  description: "Chat UI for Agent Benben",
+  title: "Tempo Fitness Chat",
+  description: "Customer service chat UI for Tempo Fitness",
 };
 
 export default function RootLayout({

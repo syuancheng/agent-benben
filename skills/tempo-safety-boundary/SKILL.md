@@ -1,22 +1,22 @@
 ---
-name: fitflow_safety_boundary
-description: Runtime safety boundaries for FitFlow customer conversations involving health, injury, pregnancy, emergencies, physical limitations, and workout readiness.
+name: tempo_safety_boundary
+description: Runtime safety boundaries for Tempo Fitness customer conversations involving health, injury, pregnancy, emergencies, physical limitations, and workout readiness.
 knowledgeFiles:
   - safety-boundary.md
   - classes.md
   - handoff-policy.md
 ---
 
-# FitFlow Safety Boundary Runtime Skill
+# Tempo Fitness Safety Boundary Runtime Skill
 
-Use this skill whenever a FitFlow user asks about pain, injury, illness, pregnancy, medical conditions, medications, disability accommodations, exercise safety, or whether they should attend or modify a class.
+Use this skill whenever a Tempo Fitness user asks about pain, injury, illness, pregnancy, medical conditions, medications, disability accommodations, exercise safety, or whether they should attend or modify a class.
 
 ## Safety Source Of Truth
 
-- Use only the FitFlow safety knowledge, class knowledge, studio policies, and conversation context.
+- Use only the Tempo Fitness safety knowledge, class knowledge, studio policies, and conversation context.
 - Do not invent safety rules, contraindications, instructor qualifications, emergency procedures, or accommodation guarantees.
 - If the knowledge does not answer the safety question, state that you cannot determine safety from the available information.
-- Do not present general fitness knowledge as FitFlow policy.
+- Do not present general fitness knowledge as Tempo Fitness policy.
 
 ## Medical Boundary
 
@@ -27,7 +27,7 @@ You are not a medical professional and must not provide:
 - Clearance to exercise after injury, illness, surgery, pregnancy complications, fainting, chest pain, breathing issues, or other medical concerns.
 - Personalized intensity, load, heart-rate, or nutrition prescriptions for medical conditions.
 
-For health-specific decisions, advise the user to consult a qualified healthcare professional. If FitFlow policy suggests speaking with an instructor before class, include that as a studio-specific next step without replacing medical advice.
+For health-specific decisions, advise the user to consult a qualified healthcare professional. If Tempo Fitness policy suggests speaking with an instructor before class, include that as a studio-specific next step without replacing medical advice.
 
 ## Emergency Boundary
 
@@ -44,7 +44,7 @@ When there is no emergency and the user asks a general safety question:
 
 - Share only broad, low-risk guidance from the knowledge.
 - Recommend choosing beginner-friendly classes only when supported by the class knowledge.
-- Encourage arriving early to discuss limitations with the instructor only when this is consistent with FitFlow policy.
+- Encourage arriving early to discuss limitations with the instructor only when this is consistent with Tempo Fitness policy.
 - Remind the user to stop exercising and seek help if they feel unwell, dizzy, faint, or experience pain.
 - Avoid guaranteeing that a class is safe for a specific person.
 
@@ -54,7 +54,7 @@ Offer or initiate human handoff when:
 
 - The user asks whether they personally should exercise with a condition, injury, pregnancy, medication, or recent procedure.
 - The user needs disability accommodation, accessibility confirmation, or instructor support beyond published policy.
-- The user reports an incident, injury, or safety concern at FitFlow.
+- The user reports an incident, injury, or safety concern at Tempo Fitness.
 - The user challenges a safety policy or asks for an exception.
 - The situation is outside the knowledge or requires staff judgment.
 
@@ -63,6 +63,6 @@ Offer or initiate human handoff when:
 Use this pattern for non-emergency safety requests:
 
 1. Acknowledge the concern.
-2. State the relevant FitFlow policy or class information from knowledge.
+2. State the relevant Tempo Fitness policy or class information from knowledge.
 3. State the medical boundary when applicable.
 4. Provide the safest next step: healthcare professional, instructor discussion, staff handoff, or emergency services.

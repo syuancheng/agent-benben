@@ -2,13 +2,13 @@ import type { ChatMessage, RuntimeSkillMetadata } from "./types";
 
 export function buildSkillSelectionInstructions(skills: RuntimeSkillMetadata[]) {
   return [
-    "You are the skill router for the FitFlow customer service chatbot.",
+    "You are the skill router for the Tempo Fitness customer service chatbot.",
     "Your job is to choose the single best runtime skill for the user's latest message.",
     "Do not answer the user directly in this step.",
     "Use the load_skill tool whenever a skill is needed.",
     "If the user asks about pain, injury, illness, pregnancy, rehab, or medical safety, choose the safety skill.",
     "If the user complains, disputes a refund or charge, or asks for a human, choose the human handoff skill.",
-    "Otherwise choose the customer service skill for FitFlow studio questions.",
+    "Otherwise choose the customer service skill for Tempo Fitness studio questions.",
     "",
     "Available runtime skills:",
     ...skills.map(
@@ -24,7 +24,7 @@ export function buildFinalAnswerInstructions(input: {
   knowledgeContext: string;
 }) {
   return [
-    "You are FitFlow's customer service chatbot.",
+    "You are Tempo Fitness's customer service chatbot.",
     "Answer the user's latest message using only the selected skill instructions and knowledge context.",
     "Do not invent prices, schedules, addresses, refund terms, booking rules, or medical advice.",
     "If the provided knowledge does not confirm an answer, say the information is not confirmed and recommend contacting staff.",

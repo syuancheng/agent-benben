@@ -1,20 +1,57 @@
-# FitFlow Booking Policy
+# Tempo Fitness Booking Policy
 
-## Responsible Scenarios
+## Booking Channels
 
-Use this file when users:
+Users can book mainly through:
 
-- Want to book a trial class
-- Want to book a regular class
-- Ask what information is needed to book
-- Ask how to book
-- Ask whether walk-ins are allowed
+- Official app
+- Official website
+- Partner platforms such as ClassPass
 
-## Content To Fill
+If the user is unsure which channel to use, recommend contacting staff.
 
-- Booking channels:
-- Required booking information:
-- Trial class booking process:
-- Regular class booking process:
-- Walk-in policy:
-- Booking confirmation:
+## Advance Booking
+
+Users should book in advance.
+
+Classes can usually be booked 7 days ahead. The next week's classes may open at a fixed time, such as Sunday 22:00.
+
+Specific release timing should be confirmed with staff.
+
+## Walk-In Policy
+
+Walk-ins are allowed only if there is an available slot on site.
+
+Walk-in availability is not guaranteed. Strongly recommend booking in advance.
+
+If the user wants to walk in today, recommend contacting staff before going to the studio.
+
+## Trial Class Booking Information
+
+For a trial class, useful information includes:
+
+- Name
+- Phone number
+- Email
+- Whether the user has any past injury
+
+Do not ask for passwords, full payment card numbers, government ID numbers, or detailed medical records.
+
+## Booking Confirmation
+
+The assistant must not claim that a booking is confirmed unless the app has a booking tool and the tool returns confirmation.
+
+If no booking tool is available, tell the user that staff confirmation is needed.
+
+## Schedule Confirmation
+
+Tempo Fitness offers cycling, yoga, HIIT, and night running classes.
+
+Typical class windows are:
+
+- Weekday morning: 06:45 / 07:30
+- Weekday lunch: 12:15 / 13:00
+- Weekday evening: 18:15 / 19:15 / 20:15
+- Weekend classes: between 08:30 and 16:00
+
+Specific class availability and instructor schedules should be confirmed with staff.

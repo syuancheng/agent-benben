@@ -1,5 +1,5 @@
 {
-  "name": "agent-benben",
+  "name": "tempo-fitness-chatbot",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -17,6 +17,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.5",
+    "@next/eslint-plugin-next": "^15.5.19",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

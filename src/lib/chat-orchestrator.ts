@@ -30,7 +30,7 @@ export async function runChatOrchestrator(messages: ChatMessage[]): Promise<Chat
       {
         type: "function",
         name: "load_skill",
-        description: "Load the selected FitFlow runtime skill instructions and relevant knowledge context.",
+        description: "Load the selected Tempo Fitness runtime skill instructions and relevant knowledge context.",
         parameters: {
           type: "object",
           properties: {
@@ -88,7 +88,7 @@ export async function runChatOrchestrator(messages: ChatMessage[]): Promise<Chat
   return {
     message: {
       role: "assistant",
-      content: finalResponse.output_text || "I could not generate an answer. Please contact FitFlow staff.",
+      content: finalResponse.output_text || "I could not generate an answer. Please contact Tempo Fitness staff.",
     },
     sources: loaded.sources,
     selectedSkill,
@@ -114,7 +114,7 @@ function parseSkillName(args: string | undefined) {
 }
 
 function fallbackSkillName(skills: Array<{ name: string }>) {
-  return skills.find((skill) => skill.name === "fitflow_customer_service")?.name || skills[0]?.name;
+  return skills.find((skill) => skill.name === "tempo_customer_service")?.name || skills[0]?.name;
 }
 
 function isHandoffSkill(skillName: string) {

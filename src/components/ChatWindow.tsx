@@ -138,7 +138,7 @@ export function ChatWindow() {
     <section className="mx-auto flex min-h-screen w-full max-w-4xl flex-col">
       <header className="border-b border-slate-200 bg-white px-4 py-4">
         <h1 className="text-lg font-semibold text-slate-950">
-          Agent Benben Chat
+          Tempo Fitness Chat
         </h1>
       </header>
 

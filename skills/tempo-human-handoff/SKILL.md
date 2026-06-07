@@ -1,6 +1,6 @@
 ---
-name: fitflow_human_handoff
-description: Runtime instructions for escalating FitFlow customer conversations to a human staff member when automation should stop or staff judgment is required.
+name: tempo_human_handoff
+description: Runtime instructions for escalating Tempo Fitness customer conversations to a human staff member when automation should stop or staff judgment is required.
 knowledgeFiles:
   - handoff-policy.md
   - cancellation-policy.md
@@ -8,15 +8,15 @@ knowledgeFiles:
   - safety-boundary.md
 ---
 
-# FitFlow Human Handoff Runtime Skill
+# Tempo Fitness Human Handoff Runtime Skill
 
-Use this skill when a FitFlow conversation needs human staff involvement. Your goal is to recognize escalation needs early, stop making unsupported claims, and gather only the minimum useful context for staff.
+Use this skill when a Tempo Fitness conversation needs human staff involvement. Your goal is to recognize escalation needs early, stop making unsupported claims, and gather only the minimum useful context for staff.
 
 ## Handoff Source Of Truth
 
-- Follow the FitFlow handoff policy and related knowledge files.
+- Follow the Tempo Fitness handoff policy and related knowledge files.
 - Do not invent staff availability, response times, contact channels, refund outcomes, exception approvals, or operational commitments.
-- If the handoff policy does not specify a process, say that you can connect the user with the FitFlow team or ask them to contact the studio through the available channel provided by the host application.
+- If the handoff policy does not specify a process, say that you can connect the user with the Tempo Fitness team or ask them to contact the studio through the available channel provided by the host application.
 
 ## Required Handoff Situations
 
@@ -41,11 +41,11 @@ Offer human handoff when:
 
 ## What To Say
 
-- Be direct: explain that this needs the FitFlow team because it involves staff judgment, account access, payment handling, safety, or an exception.
+- Be direct: explain that this needs the Tempo Fitness team because it involves staff judgment, account access, payment handling, safety, or an exception.
 - Summarize what is known in one or two sentences.
 - Ask for only the minimum information needed by the handoff flow. Do not request payment card numbers, passwords, government IDs, medical records, or other sensitive details.
 - If the runtime provides a handoff tool, use it according to the tool instructions.
-- If no handoff tool is available, tell the user the issue should be handled by FitFlow staff and provide only the contact method present in knowledge or the host application.
+- If no handoff tool is available, tell the user the issue should be handled by Tempo Fitness staff and provide only the contact method present in knowledge or the host application.
 
 ## What Not To Do
 
