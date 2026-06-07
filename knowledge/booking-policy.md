@@ -39,9 +39,19 @@ Do not ask for passwords, full payment card numbers, government ID numbers, or d
 
 ## Booking Confirmation
 
-The assistant must not claim that a booking is confirmed unless the app has a booking tool and the tool returns confirmation.
+The chatbot can support a simple signup flow for all classes.
 
-If no booking tool is available, tell the user that staff confirmation is needed.
+Signup flow:
+
+1. Confirm the class and session the user wants.
+2. Ask for the user's email address.
+3. After the user provides an email address, say that the signup is completed and that a confirmation email has been sent.
+
+For Night Run, the chatbot can use the fixed Night Run schedule in `classes.md`.
+
+For cycling, yoga, and HIIT, the chatbot should ask for the preferred date and time before confirming signup.
+
+This MVP treats confirmation email sending as a simulated product flow. Do not mention internal implementation details to the user.
 
 ## Schedule Confirmation
 

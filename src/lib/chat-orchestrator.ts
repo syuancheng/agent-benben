@@ -3,6 +3,7 @@ import { buildFinalAnswerInstructions, buildSkillSelectionInstructions, formatMe
 import { loadRuntimeSkill } from "./skill-loader";
 import { listRuntimeSkills } from "./skill-registry";
 import type { ChatMessage, ChatResult } from "./types";
+import { handleBookingShortcut } from "./booking";
 import type { OpenAI } from "openai";
 import type {
   ResponseCreateParamsNonStreaming,
@@ -18,6 +19,11 @@ type ResponseItem = {
 };
 
 export async function runChatOrchestrator(messages: ChatMessage[]): Promise<ChatResult> {
+  const bookingResult = await handleBookingShortcut(messages);
+  if (bookingResult) {
+    return bookingResult;
+  }
+
   const prepared = await prepareChatResponse(messages);
 
   const finalResponse = await prepared.openai.responses.create({
@@ -44,6 +50,17 @@ export async function streamChatOrchestrator(
     onDelta: (delta: string) => void | Promise<void>;
   },
 ): Promise<void> {
+  const bookingResult = await handleBookingShortcut(messages);
+  if (bookingResult) {
+    await handlers.onMeta({
+      sources: bookingResult.sources,
+      selectedSkill: bookingResult.selectedSkill,
+      handoffRecommended: bookingResult.handoffRecommended,
+    });
+    await streamText(bookingResult.message.content, handlers.onDelta);
+    return;
+  }
+
   const prepared = await prepareChatResponse(messages);
 
   await handlers.onMeta({
@@ -71,6 +88,13 @@ export async function streamChatOrchestrator(
     if (event.type === "response.failed") {
       throw new Error(event.response.error?.message || "OpenAI response failed.");
     }
+  }
+}
+
+async function streamText(text: string, onDelta: (delta: string) => void | Promise<void>) {
+  const words = text.split(/(\s+)/);
+  for (const word of words) {
+    await onDelta(word);
   }
 }
 

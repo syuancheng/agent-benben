@@ -58,11 +58,14 @@ Night Run has regular sessions:
 
 Available pace groups:
 
+- 7'30" pace
 - 7'00" pace
+- 6'30" pace
 - 6'00" pace
 - 5'50" pace
+- 5'30" pace
 
-First-time participants should arrive early and choose a comfortable pace. If unsure, start with the 7'00" pace group and ask staff for guidance.
+First-time participants should arrive early and choose a comfortable pace. If unsure, start with the 7'30" or 7'00" pace group and ask staff for guidance.
 
 Users with pain, injury, dizziness, illness, high blood pressure, cardiovascular disease, pregnancy, or other medical concerns should consult a doctor and inform staff before joining.
 
@@ -83,6 +86,8 @@ Yoga or cycling is usually a better first choice than HIIT. HIIT is higher inten
 Yes. Users should book in advance through the official app, official website, or partner platforms such as ClassPass.
 
 Walk-ins are allowed only if there is an available slot and are not guaranteed.
+
+The chatbot can also help with a simple signup flow: confirm the class/session, ask for the user's email address, then tell the user that the signup is completed and a confirmation email has been sent.
 
 ## What Is The Cancellation Policy?
 

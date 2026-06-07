@@ -111,6 +111,8 @@ Use these questions to manually test behavior:
 - `我要找人工客服。`
 - `我觉得被乱扣费了。`
 - `你们几点营业？`
+- `I want to participate in the night run next Tuesday. How can I sign up?`
+- `My name is Alex, my email is test@example.com, 7'00 pace`
 
 Expected behavior:
 
@@ -118,8 +120,41 @@ Expected behavior:
 - Safety, injury, pregnancy, illness, or pain questions should select `tempo_safety_boundary`.
 - Complaint, refund, payment dispute, or human support questions should select `tempo_human_handoff`.
 - The answer should not invent details that are missing from `knowledge/*.md`.
+- Signup requests should ask for name and email if they are not provided.
+- Night Run signup should also ask for a pace group.
+- After required details are provided, the prototype should return a booking summary with a booking code and say a confirmation email has been sent.
 
-The chat UI shows sources and debug data under assistant messages so you can confirm which skill was selected.
+The chat UI only shows the conversation. Sources and selected skill metadata remain available in API/SSE responses for backend debugging.
+
+## Signup Prototype
+
+The app includes a deterministic signup shortcut before the LLM call.
+
+Supported classes:
+
+- Night Run
+- Cycling class
+- Yoga class
+- HIIT class
+
+Night Run fixed sessions:
+
+- Tuesday 19:00, Marina Bay, meet at Red Dot Design Museum
+- Thursday 19:00, Marina Bay, meet at Red Dot Design Museum
+- Saturday 07:00, East Coast, meet at Parkland Green
+
+For signup, the chatbot asks for the user's name and email address. Night Run also requires a pace group.
+
+Supported Night Run pace groups:
+
+- 7'30"
+- 7'00"
+- 6'30"
+- 6'00"
+- 5'50"
+- 5'30"
+
+In this MVP, confirmation email sending is simulated: after the user provides the required details, the chatbot returns a booking code and tells the user that signup is completed and a confirmation email has been sent.
 
 ## Verification Commands
 

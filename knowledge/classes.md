@@ -93,13 +93,16 @@ Night Run route areas:
 
 Available pace groups:
 
+- 7'30" pace
 - 7'00" pace
+- 6'30" pace
 - 6'00" pace
 - 5'50" pace
+- 5'30" pace
 
 Users should choose a pace group based on their current running ability. First-time Night Run participants should arrive early, introduce themselves to the coach or staff, and choose a comfortable pace rather than forcing a faster group.
 
-If a user is unsure which pace to choose, recommend starting with the 7'00" pace group and adjusting later after staff guidance.
+If a user is unsure which pace to choose, recommend starting with the 7'30" or 7'00" pace group and adjusting later after staff guidance.
 
 Users with running-related pain, injury, dizziness, illness, high blood pressure, cardiovascular disease, pregnancy, or other medical concerns should consult a doctor and inform staff before joining.
 
