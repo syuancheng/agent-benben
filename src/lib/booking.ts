@@ -17,18 +17,31 @@ export async function handleBookingShortcut(messages: ChatMessage[]): Promise<Ch
     return null;
   }
 
-  const context = messages.map((message) => message.content).join("\n");
-  const wantsSignup = hasSignupIntent(context);
-
-  if (!wantsSignup) {
+  // Don't re-trigger after a booking has already been confirmed.
+  const alreadyConfirmed = messages.some(
+    (m) => m.role === "assistant" && m.content.includes("Booking Code："),
+  );
+  if (alreadyConfirmed) {
     return null;
   }
 
-  const booking = extractBookingDetails(context);
+  // Signup intent must come from the user's own messages (not assistant).
+  // A booking in progress (assistant already asked for details) also counts.
+  const userContext = messages
+    .filter((m) => m.role === "user")
+    .map((m) => m.content)
+    .join("\n");
+  const bookingInProgress = messages.some(
+    (m) => m.role === "assistant" && m.content.includes("I can help you sign up"),
+  );
+  if (!hasSignupIntent(userContext) && !bookingInProgress) {
+    return null;
+  }
 
-  const email = extractEmail(latest.content) || extractEmail(context);
-  const name = extractName(context);
-  const pace = extractPace(context);
+  const booking = extractBookingDetails(userContext);
+  const email = extractEmail(latest.content) || extractEmail(userContext);
+  const name = extractName(userContext);
+  const pace = extractPace(userContext);
 
   if (!booking) {
     return buildBookingReply(
