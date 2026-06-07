@@ -1,11 +1,15 @@
 ---
 name: tempo_human_handoff
 description: Runtime instructions for escalating Tempo Fitness customer conversations to a human staff member when automation should stop or staff judgment is required.
-knowledgeFiles:
-  - handoff-policy.md
-  - cancellation-policy.md
-  - membership.md
-  - safety-boundary.md
+knowledge_sources:
+  - file: handoff-policy.md
+    note: When and how to escalate to human staff, complaint handling
+  - file: cancellation-policy.md
+    note: Cancellation policy, refunds, late cancel, no-show, credit rules
+  - file: membership.md
+    note: Membership options, class packs, pricing, trial offers, billing policy
+  - file: safety-boundary.md
+    note: Safety rules, medical conditions, injury, pregnancy, high blood pressure, emergency guidance
 ---
 
 # Tempo Fitness Human Handoff Runtime Skill

@@ -1,14 +1,21 @@
 ---
 name: tempo_customer_service
 description: Runtime instructions for Tempo Fitness customer service conversations, including how to answer from approved knowledge and when to defer.
-knowledgeFiles:
-  - studio-overview.md
-  - classes.md
-  - beginner-guide.md
-  - membership.md
-  - booking-policy.md
-  - cancellation-policy.md
-  - faq.md
+knowledge_sources:
+  - file: studio-overview.md
+    note: Studio location, address, amenities, arrival guidance, house rules
+  - file: classes.md
+    note: Class types, schedules, intensity guide, equipment, night run routes and pace groups
+  - file: beginner-guide.md
+    note: Beginner fitness advice, body measurements, sedentary desk workers, fat loss, muscle gain, suggested weekly plans
+  - file: membership.md
+    note: Membership options, class packs, pricing, trial offers, billing policy
+  - file: booking-policy.md
+    note: How to book, walk-in policy, reservations, waitlist
+  - file: cancellation-policy.md
+    note: Cancellation policy, refunds, late cancel, no-show, credit rules
+  - file: faq.md
+    note: Frequently asked questions
 ---
 
 # Tempo Fitness Customer Service Runtime Skill

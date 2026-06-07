@@ -71,60 +71,85 @@ This keeps frontend, backend, and knowledge retrieval in one codebase.
 
 ## 4. Runtime Architecture
 
+The orchestration uses a two-phase agentic design.
+
+### Phase 1 — Skill Loading (one-time)
+
+```text
+User message
+  -> Backend loads skill metadata list
+  -> OpenAI call #1 with load_skill tool (tool_choice: required)
+  -> Model returns: load_skill({ skill: "tempo_customer_service" })
+  -> Backend loads selected SKILL.md body + knowledge/index.md
+  -> Injects both as function_call_output into Phase 2 context
+```
+
+### Phase 2 — Retrieval Execution (agentic loop, up to 5 rounds)
+
+```text
+OpenAI call #2 with read_knowledge_file tool + skill instructions + index
+  -> Model reads knowledge/index.md to identify relevant files
+  -> Model calls: read_knowledge_file({ filename: "beginner-guide.md" })
+  -> Backend reads the file, injects content as function_call_output
+  -> [repeat if more files are needed]
+  -> Model produces final answer (no more tool calls)
+  -> Backend streams answer to frontend
+```
+
+### Full Flow
+
 ```text
 User
   |
   v
 Frontend Chat UI
   |
-  | POST /api/chat
-  v
-Backend Chat Route
-  |
-  | run customer-service chat orchestration
-  v
-Chat Orchestration
-  |
-  | first model call with skill metadata and load_skill tool
-  v
-OpenAI Model
-  |
-  | returns tool-use: load_skill(skillName, userIntent)
-  v
-Runtime Skill Loader
-  |
-  | selected skill instructions
-  v
-Chat Orchestration
-  |
-  | selected skill calls knowledge search
-  v
-Knowledge Retriever
-  |
-  | relevant knowledge chunks + selected skill content
-  v
-OpenAI Model
-  |
-  | answer grounded in knowledge
+  | POST /api/chat/stream
   v
 Backend Chat Route
   |
   v
-Frontend Chat UI
+Chat Orchestration — Phase 1
+  |
+  | call #1: load_skill tool
+  v
+OpenAI Model
+  |
+  | tool call: load_skill(skillName)
+  v
+Skill Loader
+  | loads SKILL.md body + knowledge/index.md
+  v
+Chat Orchestration — Phase 2
+  |
+  | call #2: read_knowledge_file tool + index injected
+  v
+OpenAI Model
+  |
+  | tool call: read_knowledge_file(filename)
+  v
+Knowledge File Reader
+  | returns file content
+  v
+OpenAI Model  [repeats until no tool calls]
+  |
+  | final answer
+  v
+Backend streams to Frontend
 ```
 
-The model does not directly read local files. A prompt alone cannot make the model scan the project directory. The app must expose an explicit tool that lets the model request a skill.
+The model never reads local files directly. The app exposes two explicit tools: `load_skill` for Phase 1 skill routing, and `read_knowledge_file` for Phase 2 on-demand knowledge retrieval.
 
 The runtime flow is:
 
 1. The backend loads the frontmatter metadata for available runtime skills.
-2. The backend sends the user message, conversation context, skill metadata list, and a `load_skill` function tool to the model.
-3. The model returns a tool call such as `load_skill({ "skill": "tempo_customer_service" })`.
-4. The backend executes the tool by loading the selected skill instructions and any relevant knowledge.
-5. The backend sends the tool output back to the model.
-6. The model generates the final user-facing answer.
+2. Phase 1: the backend sends the user message, skill metadata, and `load_skill` tool. The model selects a skill.
+3. The backend loads the selected `SKILL.md` body and `knowledge/index.md`, and injects them as the tool result.
+4. Phase 2: the backend sends the skill instructions, index, and `read_knowledge_file` tool. The model reads the index to decide which files to load, then calls `read_knowledge_file` for each.
+5. The backend executes each file read and returns the content as a tool result. This repeats until the model stops requesting files.
+6. The model generates the final user-facing answer grounded in the files it chose to read.
 
-This matches the standard OpenAI tool-calling loop: request with tools, receive tool call, execute app code, submit tool output, then receive the final model response.
+This avoids loading all knowledge files upfront. The model loads only what it needs for each query, reducing token use and context noise.
 
 ## 5. Proposed Directory Structure
 
@@ -142,6 +167,7 @@ tempo-fitness/
       SKILL.md
 
   knowledge/
+    index.md             ← navigation index, injected in Phase 1
     studio-overview.md
     classes.md
     beginner-guide.md
@@ -198,24 +224,41 @@ Each file owns a specific conversation area:
 - `handoff-policy.md`: complaints, refunds, payment disputes, human support
 - `faq.md`: common fallback questions
 
-### MVP Retrieval Strategy
+### Navigation Index
 
-The MVP can use simple local retrieval:
+`knowledge/index.md` is the entry point for Phase 2 retrieval. It contains a table mapping each file to its topics. The model reads this index first to decide which files to load for the current query.
 
-1. Read all Markdown files from `knowledge/`.
-2. Split each file into chunks by headings or paragraphs.
-3. Score chunks against the latest user message.
-4. Prefer files whose scenario matches the user intent.
-5. Return the top 3-5 chunks to the chat route.
+```markdown
+| File | Topics |
+|---|---|
+| beginner-guide.md | Beginner fitness, body measurements, sedentary workers, fat loss, muscle gain |
+| classes.md | Class types, schedules, intensity, night run routes, pace groups |
+| ...  | ... |
+```
 
-This is enough while the knowledge base is small.
+### Agentic Retrieval Strategy
+
+Phase 2 uses an agentic loop driven by the `read_knowledge_file` tool:
+
+1. The model receives the knowledge index and skill instructions as context.
+2. The model calls `read_knowledge_file(filename)` for each file it needs.
+3. The backend reads the file and returns its full content as a tool result.
+4. The model may call the tool multiple times across rounds (up to 5).
+5. When the model produces text without a tool call, that is the final answer.
+
+Sources are tracked as the list of files the model actually requested.
+
+Why this approach instead of pre-loaded chunks:
+
+- **Token efficiency**: most queries need 1-2 files, not all 9. Chunk injection loads the entire set regardless.
+- **No context noise**: irrelevant file content does not interfere with the model's judgment.
+- **Index-driven routing**: the model reads the index and routes to the right file by meaning, not keyword scoring.
 
 ### Future Retrieval Strategy
 
-When the knowledge base grows, migrate to:
+When the knowledge base grows beyond local files, migrate to:
 
-- OpenAI Vector Store
-- `file_search`
+- OpenAI Vector Store with `file_search`
 - Admin upload workflow
 - Versioned knowledge documents
 
@@ -230,7 +273,22 @@ Example:
 ```markdown
 ---
 name: tempo_customer_service
-description: Answer Tempo Fitness studio, class, membership, booking, cancellation, and FAQ questions using Tempo Fitness knowledge.
+description: Answer Tempo Fitness studio, class, membership, booking, cancellation, and FAQ questions.
+knowledge_sources:
+  - file: beginner-guide.md
+    note: Beginner fitness advice, body measurements, sedentary desk workers, fat loss, muscle gain
+  - file: classes.md
+    note: Class types, schedules, intensity guide, night run routes and pace groups
+  - file: studio-overview.md
+    note: Studio location, amenities, arrival guidance, house rules
+  - file: membership.md
+    note: Membership options, pricing, class packs, trial offers
+  - file: booking-policy.md
+    note: How to book, walk-in policy, reservations, waitlist
+  - file: cancellation-policy.md
+    note: Cancellation policy, refunds, late cancel, no-show, credit rules
+  - file: faq.md
+    note: Frequently asked questions
 ---
 
 # Tempo Fitness Customer Service Skill
@@ -239,7 +297,7 @@ Use Tempo Fitness knowledge files as the source of truth.
 Do not invent prices, schedules, addresses, or policies.
 ```
 
-The runtime skill frontmatter is safe to show to the model during skill selection. The full skill body should only be loaded after the model selects that skill.
+`knowledge_sources` declares which files this skill can read, with a `note` describing each file's content. The frontmatter is safe to show to the model during skill selection. The full skill body and file contents are only loaded after the model selects the skill.
 
 ### Runtime Skill Registry
 
@@ -266,9 +324,10 @@ src/lib/skill-loader.ts
 
 Responsibilities:
 
-- Load the selected `SKILL.md` body.
-- Attach skill-specific knowledge files or retrieval configuration.
-- Return the skill instructions and selected knowledge context as the `load_skill` tool output.
+- Load the selected `SKILL.md` body and parse `knowledge_sources`.
+- Read `knowledge/index.md` as the Phase 2 navigation anchor.
+- Return the skill instructions and index content as the `load_skill` tool output.
+- Does not pre-load or score knowledge chunks — file reading happens in Phase 2.
 
 ### Codex Skill Vs Runtime Skill
 
@@ -320,16 +379,21 @@ Responsibilities:
 ### Runtime Tool Calling Flow
 
 ```text
-User message
+Phase 1 — Skill Selection
   -> chat-orchestrator loads skill metadata
   -> OpenAI call #1 with load_skill tool
-  -> model returns tool-use: load_skill(...)
-  -> backend loads selected SKILL.md and relevant knowledge
-  -> OpenAI call #2 with function_call_output
-  -> model returns final answer
+  -> model returns tool-use: load_skill({ skill: "tempo_customer_service" })
+  -> backend loads SKILL.md body + knowledge/index.md
+
+Phase 2 — Agentic Retrieval (up to 5 rounds)
+  -> OpenAI call #2: model receives skill instructions + index
+  -> model calls read_knowledge_file({ filename: "beginner-guide.md" })
+  -> backend reads file, injects content
+  -> [repeat for additional files if needed]
+  -> model produces final answer (no tool call)
 ```
 
-The first model response should normally be a tool-use response. The second model response should be the final user-facing answer.
+Phase 1 always produces one tool call. Phase 2 produces one tool call per file read, followed by the final text answer. The context accumulates across rounds via `previous_response_id`.
 
 ## 8. Chat API
 
@@ -426,37 +490,26 @@ Core rules:
 
 ### Final Answer Prompt
 
-The second model call should produce the user-facing answer.
+Phase 2 model calls receive:
 
-It receives:
+- Current user message and conversation history
+- Selected skill instructions (from `load_skill` tool output)
+- `knowledge/index.md` content (navigation anchor, from `load_skill` tool output)
+- The `read_knowledge_file` tool
+- File contents returned by previous `read_knowledge_file` calls (accumulated via `previous_response_id`)
 
-- Current user message
-- Recent conversation history
-- Selected skill instructions
-- Retrieved knowledge context
-- Tool output from `load_skill`
-
-The assistant should behave as a fitness studio customer service representative.
+The model is instructed to read the index first, call `read_knowledge_file` for each relevant file, then produce the answer.
 
 Core rules:
 
-- Answer only based on provided knowledge context.
+- Use `read_knowledge_file` before answering — do not guess from memory.
+- Read only the files relevant to the user's question, not all files.
+- Answer only based on the knowledge files read.
 - Do not invent prices, schedules, addresses, refund terms, or medical advice.
 - If knowledge is missing, say that the current information is not confirmed and recommend contacting staff.
 - Keep answers concise, friendly, and actionable.
-- Ask one follow-up question only when needed.
 - For safety, medical, pain, injury, pregnancy, or illness topics, do not diagnose or prescribe training. Recommend consulting a qualified professional and notify staff before class.
 - For complaints, refund disputes, payment problems, or explicit human-support requests, recommend human handoff.
-
-The prompt should include:
-
-- Assistant role
-- Selected skill instructions
-- Knowledge context
-- Safety rules
-- Handoff rules
-- Answer style
-- Current conversation history
 
 ## 10. Handoff Logic
 
@@ -576,34 +629,33 @@ Expected behavior:
 - Create `skills/tempo-customer-service/SKILL.md`.
 - Create `skills/tempo-safety-boundary/SKILL.md`.
 - Create `skills/tempo-human-handoff/SKILL.md`.
-- Add frontmatter with `name` and `description` for skill selection.
+- Add frontmatter with `name`, `description`, and `knowledge_sources` (file + note entries).
 - Add full skill instructions below the frontmatter.
 
 ### Phase 5: Skill Registry And Loader
 
 - Implement `src/lib/skill-registry.ts`.
-- Parse `SKILL.md` frontmatter.
+- Parse `SKILL.md` frontmatter including structured `knowledge_sources` list objects.
 - Return compact metadata for the first model call.
 - Implement `src/lib/skill-loader.ts`.
-- Validate selected skill names.
-- Load the selected skill body.
+- Load selected skill body and `knowledge/index.md`.
+- Return both as the `load_skill` tool output (no chunk retrieval).
 
-### Phase 6: Knowledge Retrieval
+### Phase 6: Knowledge Index
 
-- Implement Markdown file loader.
-- Implement chunking.
-- Implement keyword scoring.
-- Add file-level intent weighting.
+- Create `knowledge/index.md` as a navigation index table (file → topics).
+- Add `src/lib/knowledge.ts` with `readKnowledgeFile(filename)` for Phase 2 tool execution.
+- No chunking or keyword scoring needed.
 
-### Phase 7: Tool-Use Chat Orchestration
+### Phase 7: Two-Phase Agentic Orchestration
 
 - Implement `src/lib/chat-orchestrator.ts`.
-- Make OpenAI call #1 with skill metadata and `load_skill` tool.
-- Parse model tool-use output.
-- Execute `load_skill`.
-- Retrieve relevant knowledge for the selected skill.
-- Make OpenAI call #2 with `function_call_output`.
-- Stream the final model answer from OpenAI call #2.
+- Phase 1: OpenAI call #1 with skill metadata and `load_skill` tool. Load skill body + index.
+- Phase 2: agentic loop (up to 5 rounds) with `read_knowledge_file` tool.
+  - Each round: model calls tool → backend reads file → inject as `function_call_output`.
+  - Loop exits when model produces text (no tool call).
+  - Accumulate sources (files actually read).
+- Stream final answer word-by-word after the loop resolves.
 - Keep the API route thin.
 
 ### Phase 8: Prompt And Safety

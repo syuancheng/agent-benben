@@ -1,4 +1,3 @@
-import { sendRegistrationEmail } from "./email";
 import type { ChatMessage, ChatResult } from "./types";
 
 type BookingDetails = {
@@ -20,11 +19,12 @@ export async function handleBookingShortcut(messages: ChatMessage[]): Promise<Ch
 
   const context = messages.map((message) => message.content).join("\n");
   const wantsSignup = hasSignupIntent(context);
-  const booking = extractBookingDetails(context);
 
-  if (!wantsSignup && !booking) {
+  if (!wantsSignup) {
     return null;
   }
+
+  const booking = extractBookingDetails(context);
 
   const email = extractEmail(latest.content) || extractEmail(context);
   const name = extractName(context);
@@ -32,7 +32,7 @@ export async function handleBookingShortcut(messages: ChatMessage[]): Promise<Ch
 
   if (!booking) {
     return buildBookingReply(
-      "Sure, I can help you sign up. Which class and session would you like to join? Please include your name and email address so we can send the confirmation email.",
+      "Sure, I can help you sign up. Which class and session would you like to join? Please include your name and email address.",
     );
   }
 
@@ -41,7 +41,7 @@ export async function handleBookingShortcut(messages: ChatMessage[]): Promise<Ch
       [
         `Sure, I can help you sign up for ${booking.className}.`,
         "",
-        "Please provide your name, email address, and preferred class date/time so I can complete the signup and send the confirmation email.",
+        "Please provide your name, email address, and preferred class date/time.",
       ].join("\n"),
     );
   }
@@ -61,34 +61,14 @@ export async function handleBookingShortcut(messages: ChatMessage[]): Promise<Ch
         `Meeting point: ${booking.location}`,
         `Route: ${booking.route}`,
         "",
-        `Please provide your ${formatMissing(missing)} so I can complete the signup and send the confirmation email.`,
-      ].join("\n"),
-    );
-  }
-
-  const emailResult = await sendRegistrationEmail({
-    to: email,
-    ...booking,
-  });
-
-  if (!emailResult.sent) {
-    return buildBookingReply(
-      [
-        `I have the signup details for ${booking.className}, but I could not send the confirmation email.`,
-        "",
-        `Email: ${email}`,
-        `Session: ${booking.sessionLabel}`,
-        `Meeting point: ${booking.location}`,
-        `Route: ${booking.route}`,
-        "",
-        "Please contact Tempo Fitness staff to complete the registration.",
+        `Please provide your ${formatMissing(missing)} to complete the signup.`,
       ].join("\n"),
     );
   }
 
   return buildBookingReply(
     [
-      "您的报名信息",
+      "预约成功！",
       "",
       `Booking Code：${createBookingCode()}`,
       `Name：${name}`,
@@ -97,10 +77,9 @@ export async function handleBookingShortcut(messages: ChatMessage[]): Promise<Ch
       `Class：${booking.className}${booking.className === "Night Run" && pace ? ` (${pace} pace group)` : ""}`,
       `Meeting Point：${booking.location}`,
       `Route：${booking.route}`,
-      "Remind：Please arrive early. For Night Run, choose a comfortable pace and do not force a faster group. If you have pain, injury, pregnancy, high blood pressure, cardiovascular disease, recent surgery, medication concerns, or any other medical condition, please consult a doctor first and inform the coach before class.",
-      "Cancel策略：Tempo Fitness follows a 12-hour cancellation policy. Cancel more than 12 hours before class for free and the class credit is returned. Late cancel within 12 hours or no-show will deduct the class credit. Unlimited pass users may be charged an additional SGD 10 - 15 penalty.",
       "",
-      "已发送给你的邮箱。",
+      "Reminder: Please arrive early. For Night Run, choose a comfortable pace and do not force a faster group. If you have pain, injury, pregnancy, high blood pressure, cardiovascular disease, recent surgery, medication concerns, or any other medical condition, please consult a doctor first and inform the coach before class.",
+      "Cancellation policy: Cancel more than 12 hours before class for a full credit refund. Late cancel (within 12 hours) or no-show will forfeit the class credit. Unlimited pass users may be charged an additional SGD 10–15 penalty.",
     ].join("\n"),
   );
 }
@@ -108,7 +87,7 @@ export async function handleBookingShortcut(messages: ChatMessage[]): Promise<Ch
 function extractBookingDetails(text: string): BookingDetails | null {
   const lower = text.toLowerCase();
 
-  if (/(night\s*run|夜跑|run)/i.test(text)) {
+  if (/(night\s*run|夜跑)/i.test(text)) {
     if (lower.includes("tuesday") || lower.includes("周二") || lower.includes("星期二")) {
       return {
         className: "Night Run",

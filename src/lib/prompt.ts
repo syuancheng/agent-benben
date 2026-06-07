@@ -13,23 +13,21 @@ export function buildSkillSelectionInstructions(skills: RuntimeSkillMetadata[]) 
     "Otherwise choose the customer service skill for Tempo Fitness studio questions.",
     "",
     "Available runtime skills:",
-    ...skills.map(
-      (skill) =>
-        `- ${skill.name}: ${skill.description} Knowledge files: ${skill.knowledgeFiles.join(", ") || "none"}`,
-    ),
+    ...skills.map((skill) => `- ${skill.name}: ${skill.description}`),
   ].join("\n");
 }
 
 export function buildFinalAnswerInstructions(input: {
   skillName: string;
   skillInstructions: string;
-  knowledgeContext: string;
+  knowledgeIndex: string;
 }) {
   return [
     "You are Tempo Fitness's customer service chatbot.",
-    "Answer the user's latest message using only the selected skill instructions and knowledge context.",
+    "Before answering, use the read_knowledge_file tool to read the specific knowledge files relevant to the user's question.",
+    "The knowledge index below shows what each file contains — read only what is needed, not all files.",
     "Do not invent prices, schedules, addresses, refund terms, booking rules, or medical advice.",
-    "If the provided knowledge does not confirm an answer, say the information is not confirmed and recommend contacting staff.",
+    "If the knowledge you read does not confirm an answer, say the information is not confirmed and recommend contacting staff.",
     "Keep the answer concise, friendly, and actionable.",
     "For beginner fitness, fat loss, muscle gain, and body composition topics, give general low-intensity, gradual suggestions from the knowledge. Do not turn them into medical issues unless the user mentions a medical warning sign.",
     "When giving beginner fitness suggestions, end with a brief safety warning that the guidance assumes the user is a generally healthy adult and that pain, injury, pregnancy, high blood pressure, cardiovascular disease, recent surgery, medication concerns, or any other medical condition should be discussed with a doctor and the coach before class.",
@@ -41,8 +39,8 @@ export function buildFinalAnswerInstructions(input: {
     "Selected skill instructions:",
     input.skillInstructions,
     "",
-    "Knowledge context:",
-    input.knowledgeContext || "No matching knowledge context was found.",
+    "Knowledge index (use read_knowledge_file to load relevant files before answering):",
+    input.knowledgeIndex,
   ].join("\n");
 }
 

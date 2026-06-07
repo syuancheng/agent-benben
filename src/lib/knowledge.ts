@@ -8,6 +8,14 @@ export type KnowledgeDocument = {
 
 const KNOWLEDGE_DIR = path.join(process.cwd(), "knowledge");
 
+export async function readKnowledgeFile(filename: string): Promise<string> {
+  try {
+    return await fs.readFile(path.join(KNOWLEDGE_DIR, filename), "utf8");
+  } catch {
+    return `Knowledge file "${filename}" not found.`;
+  }
+}
+
 export async function loadKnowledgeDocuments(files?: string[]) {
   const allFiles = await fs.readdir(KNOWLEDGE_DIR);
   const wanted = new Set(files?.filter(Boolean));

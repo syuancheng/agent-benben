@@ -1,10 +1,13 @@
 ---
 name: tempo_safety_boundary
 description: Runtime safety boundaries for Tempo Fitness customer conversations involving health, injury, pregnancy, emergencies, physical limitations, and workout readiness.
-knowledgeFiles:
-  - safety-boundary.md
-  - classes.md
-  - handoff-policy.md
+knowledge_sources:
+  - file: safety-boundary.md
+    note: Safety rules, medical conditions, injury, pregnancy, high blood pressure, emergency guidance
+  - file: classes.md
+    note: Class types, schedules, intensity guide, equipment
+  - file: handoff-policy.md
+    note: When and how to escalate to human staff, complaint handling
 ---
 
 # Tempo Fitness Safety Boundary Runtime Skill

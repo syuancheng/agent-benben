@@ -12,10 +12,15 @@ export type KnowledgeChunk = {
   score: number;
 };
 
+export type KnowledgeSource = {
+  file: string;
+  note: string;
+};
+
 export type RuntimeSkillMetadata = {
   name: string;
   description: string;
-  knowledgeFiles: string[];
+  knowledgeSources: KnowledgeSource[];
 };
 
 export type LoadedSkill = RuntimeSkillMetadata & {

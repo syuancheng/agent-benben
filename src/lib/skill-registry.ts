@@ -1,6 +1,6 @@
 import { promises as fs } from "fs";
 import path from "path";
-import type { RuntimeSkillMetadata } from "./types";
+import type { KnowledgeSource, RuntimeSkillMetadata } from "./types";
 
 const SKILLS_DIR = path.join(process.cwd(), "skills");
 
@@ -42,38 +42,64 @@ async function readSkillMetadata(directory: string): Promise<RuntimeSkillMetadat
     directory,
     name: requireFrontmatter(frontmatter, "name"),
     description: requireFrontmatter(frontmatter, "description"),
-    knowledgeFiles: parseList(frontmatter.knowledgeFiles),
+    knowledgeSources: parseKnowledgeSources(frontmatter.knowledge_sources),
   };
 }
 
+export type FrontmatterValue = string | string[] | Array<Record<string, string>>;
+
 export function parseFrontmatter(raw: string) {
   if (!raw.startsWith("---\n")) {
-    return { frontmatter: {} as Record<string, string | string[]>, body: raw.trim() };
+    return { frontmatter: {} as Record<string, FrontmatterValue>, body: raw.trim() };
   }
 
   const end = raw.indexOf("\n---", 4);
   if (end === -1) {
-    return { frontmatter: {} as Record<string, string | string[]>, body: raw.trim() };
+    return { frontmatter: {} as Record<string, FrontmatterValue>, body: raw.trim() };
   }
 
   const frontmatterRaw = raw.slice(4, end).trim();
   const body = raw.slice(end + 4).trim();
-  const frontmatter: Record<string, string | string[]> = {};
+  const frontmatter: Record<string, FrontmatterValue> = {};
   let currentKey: string | null = null;
+  let currentObject: Record<string, string> | null = null;
 
   for (const line of frontmatterRaw.split("\n")) {
-    const listItem = line.match(/^\s*-\s+(.+)$/);
-    if (listItem && currentKey) {
-      const existing = frontmatter[currentKey];
-      frontmatter[currentKey] = [...(Array.isArray(existing) ? existing : []), cleanValue(listItem[1])];
+    // Detect indented key: value inside a list item (e.g. "    note: ...")
+    const nestedPair = line.match(/^\s{2,}([A-Za-z0-9_-]+):\s*(.*)$/);
+    if (nestedPair && currentKey && currentObject !== null) {
+      currentObject[nestedPair[1]] = cleanValue(nestedPair[2]);
       continue;
     }
 
+    // Detect list item: "  - value" or "  - key: value"
+    const listItem = line.match(/^\s*-\s+(.+)$/);
+    if (listItem && currentKey) {
+      const itemText = listItem[1];
+      const objectStart = itemText.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
+      if (objectStart) {
+        // Start a new object entry in an array
+        currentObject = { [objectStart[1]]: cleanValue(objectStart[2]) };
+        const existing = frontmatter[currentKey];
+        const arr = Array.isArray(existing) ? (existing as Array<Record<string, string>>) : [];
+        arr.push(currentObject);
+        frontmatter[currentKey] = arr;
+      } else {
+        // Plain string list item
+        currentObject = null;
+        const existing = frontmatter[currentKey];
+        frontmatter[currentKey] = [...(Array.isArray(existing) ? (existing as string[]) : []), cleanValue(itemText)];
+      }
+      continue;
+    }
+
+    // Top-level key: value pair
     const pair = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
     if (!pair) {
       continue;
     }
 
+    currentObject = null;
     currentKey = pair[1];
     frontmatter[currentKey] = cleanValue(pair[2]);
   }
@@ -81,13 +107,25 @@ export function parseFrontmatter(raw: string) {
   return { frontmatter, body };
 }
 
-function parseList(value: string | string[] | undefined) {
+export function parseKnowledgeSources(value: unknown): KnowledgeSource[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is Record<string, string> => typeof item === "object" && item !== null)
+    .map((item) => ({ file: item.file || "", note: item.note || "" }))
+    .filter((s) => s.file);
+}
+
+function parseList(value: unknown) {
   if (!value) {
     return [];
   }
 
   if (Array.isArray(value)) {
-    return value;
+    return (value as string[]).filter((v) => typeof v === "string");
+  }
+
+  if (typeof value !== "string") {
+    return [];
   }
 
   const trimmed = value.trim();
@@ -102,7 +140,7 @@ function parseList(value: string | string[] | undefined) {
   return [cleanValue(trimmed)].filter(Boolean);
 }
 
-function requireFrontmatter(frontmatter: Record<string, string | string[]>, key: string) {
+function requireFrontmatter(frontmatter: Record<string, FrontmatterValue>, key: string) {
   const value = frontmatter[key];
   if (typeof value !== "string" || !value.trim()) {
     throw new Error(`Missing required skill frontmatter: ${key}`);
@@ -114,3 +152,6 @@ function requireFrontmatter(frontmatter: Record<string, string | string[]>, key:
 function cleanValue(value: string) {
   return value.trim().replace(/^["']|["']$/g, "");
 }
+
+// Export parseList for potential use in other modules
+export { parseList };
